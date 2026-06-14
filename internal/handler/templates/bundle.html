@@ -1,0 +1,76 @@
+{{define "bundle.html"}}<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Dokumen QRIS — {{.MerchantName}}</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --muted:#94a3b8; --accent:#22c55e; --accent2:#16a34a; --warn:#f59e0b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+  .wrap { max-width:880px; margin:0 auto; padding:24px 16px 64px; }
+  header { padding:20px 0; border-bottom:1px solid var(--line); margin-bottom:24px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; }
+  .note { background:#422006; border:1px solid var(--warn); color:#fde68a; padding:12px 14px; border-radius:8px; margin:16px 0; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  .thumb { background:#0b1220; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .thumb img { width:100%; height:100%; object-fit:contain; }
+  .thumb .ph { color:var(--muted); font-size:13px; }
+  .meta { padding:12px 14px; flex:1; }
+  .label { font-weight:600; font-size:14px; margin-bottom:2px; }
+  .fname { color:var(--muted); font-size:12px; word-break:break-all; }
+  .actions { padding:0 14px 14px; }
+  .btn { display:inline-block; width:100%; text-align:center; padding:9px 12px; border-radius:8px; font-size:14px; font-weight:600; text-decoration:none; cursor:pointer; border:none; }
+  .btn-dl { background:var(--accent); color:#04210f; }
+  .btn-dl:hover { background:var(--accent2); }
+  .confirm-box { margin-top:32px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
+  .confirm-box p { color:var(--muted); font-size:14px; line-height:1.6; margin:0 0 16px; }
+  .btn-confirm { background:#dc2626; color:#fff; padding:12px 16px; font-size:15px; }
+  .btn-confirm:hover { background:#b91c1c; }
+  footer { margin-top:40px; color:var(--muted); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Dokumen QRIS — {{.MerchantName}}</h1>
+    <div class="sub">Diunggah {{.CreatedAt}} · Akses terbatas &amp; tercatat</div>
+  </header>
+
+  {{if .Note}}<div class="note">{{.Note}}</div>{{end}}
+
+  <div class="grid">
+    {{range .Files}}
+    <div class="card">
+      <div class="thumb">
+        {{if .IsImage}}<img src="/f/{{.Token}}" alt="{{.Label}}" loading="lazy">{{else}}<span class="ph">{{.FileName}}</span>{{end}}
+      </div>
+      <div class="meta">
+        <div class="label">{{.Label}}</div>
+        <div class="fname">{{.FileName}}</div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-dl" href="/f/{{.Token}}/download">Download</a>
+      </div>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="confirm-box">
+    <p>
+      Setelah Anda selesai mengunduh seluruh dokumen di atas, tekan tombol konfirmasi.
+      Setelah dikonfirmasi, tautan ini akan <strong>dinonaktifkan secara permanen</strong>
+      dan dokumen tidak dapat diakses kembali demi keamanan data merchant.
+    </p>
+    <form method="POST" action="/b/{{.Token}}/confirm" onsubmit="return confirm('Konfirmasi bahwa Anda sudah mengunduh semua dokumen? Tautan akan dinonaktifkan dan tidak bisa dibuka lagi.');">
+      <button type="submit" class="btn btn-confirm">Konfirmasi — Saya Sudah Mengunduh</button>
+    </form>
+  </div>
+
+  <footer>PT. Gerbang Transaksi Digital · Portal dokumen aman · files.qris.gtd.co.id</footer>
+</div>
+</body>
+</html>{{end}}

@@ -1,0 +1,23 @@
+# Environment & secrets (NEVER commit)
+.env
+.env.*
+!.env.example
+
+# RDS CA bundle / certs (mounted at runtime)
+certs/
+
+# Build output / binaries
+bin/
+gtd_files_qris
+*.exe
+*.exe~
+*.test
+*.out
+coverage.out
+coverage.html
+
+# IDE / OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

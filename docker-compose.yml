@@ -1,0 +1,37 @@
+networks:
+  gtd-files-qris-network:
+    driver: bridge
+services:
+  files-qris:
+    build: .
+    container_name: gtd-files-qris
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    environment:
+    - PORT=8090
+    - ENV=${ENV}
+    - DB_HOST=${DB_HOST}
+    - DB_PORT=${DB_PORT}
+    - DB_USER=${DB_USER}
+    - DB_PASSWORD=${DB_PASSWORD}
+    - DB_NAME=${DB_NAME}
+    - DB_SSLMODE=${DB_SSLMODE}
+    - DB_SSLROOTCERT=${DB_SSLROOTCERT}
+    - FILES_S3_REGION=${FILES_S3_REGION}
+    - FILES_S3_BUCKET=${FILES_S3_BUCKET}
+    - FILES_S3_ENDPOINT=${FILES_S3_ENDPOINT}
+    - FILES_S3_ACCESS_KEY=${FILES_S3_ACCESS_KEY}
+    - FILES_S3_SECRET_KEY=${FILES_S3_SECRET_KEY}
+    networks:
+    - gtd-files-qris-network
+    ports:
+    - 8090:8090
+    restart: unless-stopped
+    volumes:
+    - ./certs:/app/certs:ro

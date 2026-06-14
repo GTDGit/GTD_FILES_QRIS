@@ -1,0 +1,23 @@
+{{define "confirmed.html"}}<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Konfirmasi Diterima</title>
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:#0f172a; color:#e2e8f0; }
+  .box { max-width:440px; text-align:center; padding:32px 24px; }
+  .check { width:72px; height:72px; border-radius:50%; background:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:38px; color:#04210f; }
+  h1 { font-size:20px; margin:8px 0; }
+  p { color:#94a3b8; font-size:14px; line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="check">&#10003;</div>
+    <h1>Konfirmasi Diterima</h1>
+    <p>Terima kasih. Dokumen{{if .MerchantName}} untuk <strong>{{.MerchantName}}</strong>{{end}} telah Anda konfirmasi terunduh. Tautan ini sekarang dinonaktifkan dan tidak dapat dibuka kembali demi keamanan data merchant.</p>
+  </div>
+</body>
+</html>{{end}}
