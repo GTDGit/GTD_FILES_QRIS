@@ -118,9 +118,15 @@
             <label class="mode" data-mode="once">
               <input type="radio" name="accessMode" value="once">
               <div class="t">Sekali Pakai</div>
-              <div class="d">Tautan hangus otomatis setelah unduhan pertama.</div>
+              <div class="d">Tautan hangus saat penerima menekan tombol konfirmasi.</div>
             </label>
           </div>
+        </div>
+
+        <div class="field" id="onceNoteField" style="display:none">
+          <label for="onceNote">Alasan Sekali Pakai <span style="font-weight:400;color:var(--muted)">(opsional)</span></label>
+          <textarea id="onceNote" name="onceNote" placeholder="mis. Dokumen sensitif, harap segera diunduh lalu konfirmasi..." maxlength="1000"></textarea>
+          <div class="hint">Ditampilkan ke penerima untuk menjelaskan kenapa tautan ini sekali pakai.</div>
         </div>
 
         <button type="submit" class="btn" id="submit">
@@ -169,6 +175,7 @@
     document.querySelectorAll('.mode').forEach(m=>m.addEventListener('click',()=>{
       document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));
       m.classList.add('active');
+      document.getElementById('onceNoteField').style.display = (m.dataset.mode==='once') ? 'block' : 'none';
     }));
 
     const form=document.getElementById('form');
@@ -186,6 +193,7 @@
       fd.append('title',document.getElementById('title').value);
       fd.append('docName',document.getElementById('docName').value);
       fd.append('note',document.getElementById('note').value);
+      fd.append('onceNote',document.getElementById('onceNote').value);
       fd.append('accessMode',document.querySelector('input[name=accessMode]:checked').value);
       picked.forEach(f=>fd.append('files',f));
 
@@ -199,6 +207,7 @@
         result.classList.add('show');
         picked=[]; render(); form.reset();
         document.querySelectorAll('.mode').forEach((x,i)=>x.classList.toggle('active',i===0));
+        document.getElementById('onceNoteField').style.display='none';
       }catch(ex){ err.textContent=ex.message; err.classList.add('show'); }
       finally{ submit.disabled=false; submit.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Unggah & Buat Tautan'; }
     });

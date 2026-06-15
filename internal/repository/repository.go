@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS file_bundles (
 	token        TEXT NOT NULL UNIQUE,
 	title        TEXT NOT NULL DEFAULT '',
 	note         TEXT,
+	once_note    TEXT,
 	access_mode  TEXT NOT NULL DEFAULT 'open',
 	status       TEXT NOT NULL DEFAULT 'active',
 	created_by   TEXT,
@@ -36,6 +37,8 @@ CREATE TABLE IF NOT EXISTS file_bundles (
 	created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
 	updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Backfill column on pre-existing deployments (CREATE TABLE IF NOT EXISTS is a no-op there).
+ALTER TABLE file_bundles ADD COLUMN IF NOT EXISTS once_note TEXT;
 
 CREATE TABLE IF NOT EXISTS file_items (
 	id           SERIAL PRIMARY KEY,
@@ -69,11 +72,11 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 	return err
 }
 
-const bundleCols = `id, token, title, note, access_mode, status, created_by, confirmed_at, expires_at, created_at, updated_at`
+const bundleCols = `id, token, title, note, once_note, access_mode, status, created_by, confirmed_at, expires_at, created_at, updated_at`
 const fileCols = `id, bundle_id, token, doc_name, file_name, content_type, size_bytes, storage_key, checksum, created_at`
 
 func scanBundle(s interface{ Scan(...any) error }, b *models.Bundle) error {
-	return s.Scan(&b.ID, &b.Token, &b.Title, &b.Note, &b.AccessMode, &b.Status,
+	return s.Scan(&b.ID, &b.Token, &b.Title, &b.Note, &b.OnceNote, &b.AccessMode, &b.Status,
 		&b.CreatedBy, &b.ConfirmedAt, &b.ExpiresAt, &b.CreatedAt, &b.UpdatedAt)
 }
 
@@ -85,10 +88,10 @@ func scanFile(s interface{ Scan(...any) error }, f *models.File) error {
 // CreateBundle inserts a new bundle and returns it (with id/timestamps filled).
 func (r *Repository) CreateBundle(ctx context.Context, b *models.Bundle) (*models.Bundle, error) {
 	row := r.db.QueryRowxContext(ctx,
-		`INSERT INTO file_bundles (token, title, note, access_mode, status, created_by, expires_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`INSERT INTO file_bundles (token, title, note, once_note, access_mode, status, created_by, expires_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		 RETURNING `+bundleCols,
-		b.Token, b.Title, b.Note, b.AccessMode, b.Status, b.CreatedBy, b.ExpiresAt)
+		b.Token, b.Title, b.Note, b.OnceNote, b.AccessMode, b.Status, b.CreatedBy, b.ExpiresAt)
 	var out models.Bundle
 	if err := scanBundle(row, &out); err != nil {
 		return nil, err

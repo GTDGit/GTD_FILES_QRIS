@@ -53,10 +53,11 @@
     </div>
   </header>
   <main>
-    {{if .Once}}<div class="once">⚠ Sekali Pakai — tautan hangus setelah unduhan pertama</div>{{end}}
+    {{if .Once}}<div class="once">⚠ Sekali Pakai — tautan hangus setelah Anda menekan tombol konfirmasi di bawah</div>{{end}}
     <h1>{{.Title}}</h1>
     <p class="meta">Dibuat {{.CreatedAt}} · {{len .Files}} file · akses tercatat</p>
     {{if .Note}}<div class="note">{{.Note}}</div>{{end}}
+    {{if and .Once .OnceNote}}<div class="note" style="background:var(--amber-bg);border-color:var(--amber-line)"><strong>Alasan sekali pakai:</strong> {{.OnceNote}}</div>{{end}}
 
     <div class="grid">
       {{range .Files}}
@@ -80,15 +81,17 @@
       {{end}}
     </div>
 
-    {{if not .Once}}
     <div class="confirm">
       <h3>Sudah selesai mengunduh?</h3>
+      {{if .Once}}
+      <p>Tautan ini <strong>sekali pakai</strong>. Pastikan Anda sudah mengunduh semua file di atas, lalu klik untuk menutupnya. Setelah dikonfirmasi, semua file tidak bisa diakses lagi.</p>
+      {{else}}
       <p>Klik untuk menutup tautan ini secara permanen. Setelah dikonfirmasi, semua file di sini tidak bisa diakses lagi demi keamanan data.</p>
+      {{end}}
       <form method="post" action="/b/{{.Token}}/confirm" onsubmit="return confirm('Tutup tautan ini? File tidak bisa diakses lagi setelah ini.')">
         <button type="submit">Konfirmasi &amp; Tutup Tautan</button>
       </form>
     </div>
-    {{end}}
   </main>
   <footer>&copy; 2026 PT. Gerbang Transaksi Digital</footer>
 </body>

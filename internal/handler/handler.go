@@ -115,6 +115,7 @@ type bundlePageData struct {
 	Files     []fileView
 	CreatedAt string
 	Once      bool
+	OnceNote  string
 }
 
 // ShowUpload renders the public upload form at GET /api (and "/").
@@ -162,6 +163,7 @@ func (p *Portal) serveAsset(c *gin.Context, name string) {
 type uploadMeta struct {
 	title      string
 	note       *string
+	onceNote   *string
 	docName    *string
 	accessMode models.AccessMode
 }
@@ -178,6 +180,7 @@ type uploadFile struct {
 type jsonUploadReq struct {
 	Title      string `json:"title"`
 	Note       string `json:"note"`
+	OnceNote   string `json:"onceNote"`
 	DocName    string `json:"docName"`
 	AccessMode string `json:"accessMode"`
 	Files      []struct {
@@ -237,7 +240,7 @@ func (p *Portal) parseMultipartUpload(c *gin.Context) (uploadMeta, []uploadFile,
 	if form == nil {
 		return uploadMeta{}, nil, &uploadError{http.StatusBadRequest, "INVALID_FORM", "could not parse upload form"}
 	}
-	meta := metaFrom(c.PostForm("title"), c.PostForm("note"), c.PostForm("docName"), c.PostForm("accessMode"))
+	meta := metaFrom(c.PostForm("title"), c.PostForm("note"), c.PostForm("onceNote"), c.PostForm("docName"), c.PostForm("accessMode"))
 
 	var files []uploadFile
 	for _, fh := range form.File["files"] {
@@ -264,7 +267,7 @@ func (p *Portal) parseJSONUpload(c *gin.Context) (uploadMeta, []uploadFile, *upl
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return uploadMeta{}, nil, &uploadError{http.StatusBadRequest, "INVALID_JSON", "invalid JSON body"}
 	}
-	meta := metaFrom(req.Title, req.Note, req.DocName, req.AccessMode)
+	meta := metaFrom(req.Title, req.Note, req.OnceNote, req.DocName, req.AccessMode)
 
 	var files []uploadFile
 	for _, f := range req.Files {
@@ -291,6 +294,7 @@ func (p *Portal) processUpload(c *gin.Context, meta uploadMeta, files []uploadFi
 		Token:      newToken(),
 		Title:      meta.title,
 		Note:       meta.note,
+		OnceNote:   meta.onceNote,
 		AccessMode: meta.accessMode,
 		Status:     models.StatusActive,
 	})
@@ -383,7 +387,7 @@ func (p *Portal) cleanup(ctx context.Context, keys []string) {
 }
 
 // metaFrom normalizes bundle-level fields from any upload source.
-func metaFrom(title, note, docName, accessMode string) uploadMeta {
+func metaFrom(title, note, onceNote, docName, accessMode string) uploadMeta {
 	m := uploadMeta{accessMode: models.AccessOpen}
 	if m.title = strings.TrimSpace(title); m.title == "" {
 		m.title = "Untitled"
@@ -393,6 +397,9 @@ func metaFrom(title, note, docName, accessMode string) uploadMeta {
 	}
 	if n := strings.TrimSpace(note); n != "" {
 		m.note = &n
+	}
+	if o := strings.TrimSpace(onceNote); o != "" {
+		m.onceNote = &o
 	}
 	if d := strings.TrimSpace(docName); d != "" {
 		m.docName = &d
@@ -448,6 +455,10 @@ func (p *Portal) ViewBundle(c *gin.Context) {
 	if bundle.Note != nil {
 		note = *bundle.Note
 	}
+	onceNote := ""
+	if bundle.OnceNote != nil {
+		onceNote = *bundle.OnceNote
+	}
 
 	p.logAccess(c, &bundle.ID, nil, "view", "")
 	c.Status(http.StatusOK)
@@ -458,6 +469,7 @@ func (p *Portal) ViewBundle(c *gin.Context) {
 		Files:     views,
 		CreatedAt: bundle.CreatedAt.In(wib()).Format("02 Jan 2006 15:04 WIB"),
 		Once:      bundle.AccessMode == models.AccessOnce,
+		OnceNote:  onceNote,
 	}); err != nil {
 		log.Error().Err(err).Msg("render bundle page")
 	}
@@ -506,16 +518,6 @@ func (p *Portal) serveFile(c *gin.Context, asAttachment bool) {
 	c.Header("Cache-Control", "no-store, private")
 	p.logAccess(c, &bundle.ID, &file.ID, action, "")
 	c.Data(http.StatusOK, ct, data)
-
-	// once-mode: consume the bundle after the first successful download so every
-	// subsequent access returns 403.
-	if asAttachment && bundle.AccessMode == models.AccessOnce && bundle.Status != models.StatusRevoked {
-		if rerr := p.repo.RevokeBundle(c.Request.Context(), bundle.ID); rerr != nil {
-			log.Warn().Err(rerr).Int("bundle", bundle.ID).Msg("once-mode revoke failed")
-		} else {
-			p.logAccess(c, &bundle.ID, &file.ID, "confirm", "once_consumed")
-		}
-	}
 }
 
 // Confirm handles POST /b/:token/confirm — recipient confirms they've

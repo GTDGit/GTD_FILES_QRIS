@@ -30,6 +30,7 @@ type Bundle struct {
 	Token       string     `db:"token"`
 	Title       string     `db:"title"`
 	Note        *string    `db:"note"`
+	OnceNote    *string    `db:"once_note"` // shown to the recipient when AccessMode == once: why this link is one-time
 	AccessMode  AccessMode `db:"access_mode"`
 	Status      Status     `db:"status"`
 	CreatedBy   *string    `db:"created_by"`
