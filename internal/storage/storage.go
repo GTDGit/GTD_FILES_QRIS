@@ -18,8 +18,9 @@ import (
 	appconfig "github.com/GTDGit/gtd_files_qris/internal/config"
 )
 
-// Storage is the minimal read/delete contract the portal needs.
+// Storage is the minimal contract the portal needs.
 type Storage interface {
+	Put(ctx context.Context, key, contentType string, data []byte) error
 	Get(ctx context.Context, key string) ([]byte, string, error)
 	Delete(ctx context.Context, key string) error
 }
@@ -57,6 +58,24 @@ func NewS3Storage(ctx context.Context, cfg appconfig.StorageConfig) (*S3Storage,
 	})
 
 	return &S3Storage{client: client, bucket: cfg.Bucket}, nil
+}
+
+// Put uploads data privately (no ACL; object inherits the bucket's
+// public-access-blocked policy).
+func (s *S3Storage) Put(ctx context.Context, key, contentType string, data []byte) error {
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(data),
+		ContentType: aws.String(contentType),
+	})
+	if err != nil {
+		return fmt.Errorf("storage: put %s: %w", key, err)
+	}
+	return nil
 }
 
 // Get downloads object bytes and content type.

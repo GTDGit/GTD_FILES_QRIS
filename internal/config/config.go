@@ -7,10 +7,18 @@ import (
 	"strconv"
 )
 
-// Config holds all runtime parameters for the QRIS document portal.
+// Config holds all runtime parameters for the file portal.
 type Config struct {
 	Port string
 	Env  string
+
+	// BaseURL is the public origin used to build shareable links, e.g.
+	// "https://dev-files.gtd.co.id". When empty, links are built from the
+	// incoming request host.
+	BaseURL string
+
+	// MaxUploadBytes caps a single uploaded file's size (default 15 MiB).
+	MaxUploadBytes int64
 
 	DB      DatabaseConfig
 	Storage StorageConfig
@@ -36,6 +44,8 @@ type StorageConfig struct {
 	Endpoint  string
 	AccessKey string
 	SecretKey string
+	// KeyPrefix namespaces all object keys this portal writes, e.g. "files/".
+	KeyPrefix string
 }
 
 // Load reads configuration from environment variables.
@@ -44,6 +54,8 @@ func Load() (*Config, error) {
 
 	cfg.Port = getEnv("PORT", "8090")
 	cfg.Env = getEnv("ENV", "development")
+	cfg.BaseURL = trimTrailingSlash(getEnv("FILES_BASE_URL", ""))
+	cfg.MaxUploadBytes = int64(GetEnvInt("FILES_MAX_UPLOAD_MB", 15)) * 1024 * 1024
 
 	cfg.DB = DatabaseConfig{
 		Host:        getEnv("DB_HOST", ""),
@@ -61,6 +73,7 @@ func Load() (*Config, error) {
 		Endpoint:  getEnv("FILES_S3_ENDPOINT", ""),
 		AccessKey: getEnv("FILES_S3_ACCESS_KEY", ""),
 		SecretKey: getEnv("FILES_S3_SECRET_KEY", ""),
+		KeyPrefix: getEnv("FILES_S3_KEY_PREFIX", "files/"),
 	}
 
 	if cfg.DB.Host == "" || cfg.DB.User == "" || cfg.DB.Name == "" {
@@ -78,6 +91,13 @@ func getEnv(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func trimTrailingSlash(s string) string {
+	for len(s) > 0 && s[len(s)-1] == '/' {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 // GetEnvInt returns an int env var or a default.

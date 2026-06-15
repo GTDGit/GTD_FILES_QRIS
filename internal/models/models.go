@@ -2,61 +2,53 @@ package models
 
 import "time"
 
-// Mirror of the shared qris_doc_* tables (migration 000065). The portal is a
-// separate module and cannot import the gateway's internal packages, so the
-// row types it needs are defined locally.
+// Generic file-delivery portal model. A "bundle" is one shareable, token-gated
+// link holding N files. Upload happens at the portal itself (POST /api/upload);
+// files live in private S3 and are only ever streamed through token-validated
+// handlers — never via a public URL.
 
-type DocStatus string
-
-const (
-	StatusActive  DocStatus = "active"
-	StatusRevoked DocStatus = "revoked"
-)
-
-type DocType string
+type Status string
 
 const (
-	DocTypeKTP              DocType = "ktp"
-	DocTypeSelfieKTP        DocType = "selfie_ktp"
-	DocTypeBusinessLocation DocType = "business_location"
-	DocTypeExtra            DocType = "extra"
+	StatusActive  Status = "active"
+	StatusRevoked Status = "revoked"
 )
 
-// Label returns a human-readable Indonesian label for a doc type.
-func (d DocType) Label() string {
-	switch d {
-	case DocTypeKTP:
-		return "KTP"
-	case DocTypeSelfieKTP:
-		return "Foto Diri dengan KTP"
-	case DocTypeBusinessLocation:
-		return "Foto Lokasi Usaha"
-	case DocTypeExtra:
-		return "Foto Tambahan"
-	default:
-		return string(d)
-	}
-}
+// AccessMode controls link lifetime.
+//   - open: the link can be opened/downloaded freely until manual revoke/expiry.
+//   - once: the link is consumed (revoked) after the first file download.
+type AccessMode string
 
+const (
+	AccessOpen AccessMode = "open"
+	AccessOnce AccessMode = "once"
+)
+
+// Bundle is one shareable link.
 type Bundle struct {
-	ID           int        `db:"id"`
-	Token        string     `db:"token"`
-	MerchantName string     `db:"merchant_name"`
-	Status       DocStatus  `db:"status"`
-	Note         *string    `db:"note"`
-	ConfirmedAt  *time.Time `db:"confirmed_at"`
-	ExpiresAt    *time.Time `db:"expires_at"`
-	CreatedAt    time.Time  `db:"created_at"`
+	ID          int        `db:"id"`
+	Token       string     `db:"token"`
+	Title       string     `db:"title"`
+	Note        *string    `db:"note"`
+	AccessMode  AccessMode `db:"access_mode"`
+	Status      Status     `db:"status"`
+	CreatedBy   *string    `db:"created_by"`
+	ConfirmedAt *time.Time `db:"confirmed_at"`
+	ExpiresAt   *time.Time `db:"expires_at"`
+	CreatedAt   time.Time  `db:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at"`
 }
 
+// File is one stored file within a bundle.
 type File struct {
 	ID          int       `db:"id"`
 	BundleID    int       `db:"bundle_id"`
 	Token       string    `db:"token"`
-	DocType     DocType   `db:"doc_type"`
+	DocName     *string   `db:"doc_name"` // optional human label, e.g. "KTP Pemilik"
 	FileName    string    `db:"file_name"`
 	ContentType string    `db:"content_type"`
 	SizeBytes   int64     `db:"size_bytes"`
 	StorageKey  string    `db:"storage_key"`
+	Checksum    *string   `db:"checksum"`
 	CreatedAt   time.Time `db:"created_at"`
 }

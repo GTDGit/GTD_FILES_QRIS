@@ -1,76 +1,95 @@
 {{define "bundle.html"}}<!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>Dokumen QRIS — {{.MerchantName}}</title>
-<style>
-  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --muted:#94a3b8; --accent:#22c55e; --accent2:#16a34a; --warn:#f59e0b; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--txt); }
-  .wrap { max-width:880px; margin:0 auto; padding:24px 16px 64px; }
-  header { padding:20px 0; border-bottom:1px solid var(--line); margin-bottom:24px; }
-  h1 { font-size:20px; margin:0 0 4px; }
-  .sub { color:var(--muted); font-size:13px; }
-  .note { background:#422006; border:1px solid var(--warn); color:#fde68a; padding:12px 14px; border-radius:8px; margin:16px 0; font-size:14px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
-  .thumb { background:#0b1220; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .thumb img { width:100%; height:100%; object-fit:contain; }
-  .thumb .ph { color:var(--muted); font-size:13px; }
-  .meta { padding:12px 14px; flex:1; }
-  .label { font-weight:600; font-size:14px; margin-bottom:2px; }
-  .fname { color:var(--muted); font-size:12px; word-break:break-all; }
-  .actions { padding:0 14px 14px; }
-  .btn { display:inline-block; width:100%; text-align:center; padding:9px 12px; border-radius:8px; font-size:14px; font-weight:600; text-decoration:none; cursor:pointer; border:none; }
-  .btn-dl { background:var(--accent); color:#04210f; }
-  .btn-dl:hover { background:var(--accent2); }
-  .confirm-box { margin-top:32px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; }
-  .confirm-box p { color:var(--muted); font-size:14px; line-height:1.6; margin:0 0 16px; }
-  .btn-confirm { background:#dc2626; color:#fff; padding:12px 16px; font-size:15px; }
-  .btn-confirm:hover { background:#b91c1c; }
-  footer { margin-top:40px; color:var(--muted); font-size:12px; text-align:center; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>{{.Title}} — GTD Files</title>
+  <link rel="icon" href="/favicon.ico" type="image/png">
+  <style>
+    :root{
+      --blue:#2563eb; --blue-dark:#1d4ed8; --blue-50:#eff6ff; --blue-100:#dbeafe;
+      --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc;
+      --amber-bg:#fffbeb; --amber-line:#fde68a; --amber-ink:#92400e;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+    header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+    .bar{max-width:820px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px}
+    .bar img{height:34px;width:auto;display:block}
+    .bar .name{font-weight:700;font-size:17px;letter-spacing:-.01em}
+    .bar .name span{color:var(--blue)}
+    main{max-width:820px;margin:0 auto;padding:28px 20px 64px}
+    h1{font-size:23px;margin:0 0 4px;letter-spacing:-.02em}
+    .meta{color:var(--muted);font-size:13.5px;margin:0 0 20px}
+    .note{background:var(--blue-50);border:1px solid var(--blue-100);border-radius:11px;padding:14px 16px;font-size:14.5px;margin-bottom:22px;white-space:pre-wrap}
+    .once{display:inline-flex;align-items:center;gap:6px;background:var(--amber-bg);border:1px solid var(--amber-line);color:var(--amber-ink);border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:600;margin-bottom:14px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    .file{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;flex-direction:column}
+    .thumb{aspect-ratio:4/3;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;border-bottom:1px solid var(--line)}
+    .thumb img{width:100%;height:100%;object-fit:cover}
+    .thumb .ph{color:var(--muted)}
+    .file .body{padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:2px}
+    .file .label{font-weight:600;font-size:14px;word-break:break-word}
+    .file .fn{color:var(--muted);font-size:12px;word-break:break-all}
+    .file .actions{display:flex;gap:8px;padding:0 14px 14px}
+    .dl{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--blue);color:#fff;text-decoration:none;border-radius:9px;padding:9px;font-size:13.5px;font-weight:600}
+    .dl:hover{background:var(--blue-dark)}
+    .open{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);color:var(--ink);text-decoration:none;border-radius:9px;padding:9px 12px;font-size:13.5px}
+    .open:hover{border-color:var(--blue);color:var(--blue)}
+    .confirm{margin-top:30px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:20px 22px}
+    .confirm h3{margin:0 0 6px;font-size:16px}
+    .confirm p{margin:0 0 14px;color:var(--muted);font-size:13.5px}
+    .confirm button{background:var(--ink);color:#fff;border:none;border-radius:9px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer}
+    .confirm button:hover{background:#000}
+    footer{text-align:center;color:var(--muted);font-size:12.5px;padding:24px 20px 40px}
+  </style>
 </head>
 <body>
-<div class="wrap">
   <header>
-    <h1>Dokumen QRIS — {{.MerchantName}}</h1>
-    <div class="sub">Diunggah {{.CreatedAt}} · Akses terbatas &amp; tercatat</div>
+    <div class="bar">
+      <img src="/assets/logo_gtd.png" alt="GTD">
+      <div class="name">GTD <span>Files</span></div>
+    </div>
   </header>
+  <main>
+    {{if .Once}}<div class="once">⚠ Sekali Pakai — tautan hangus setelah unduhan pertama</div>{{end}}
+    <h1>{{.Title}}</h1>
+    <p class="meta">Dibuat {{.CreatedAt}} · {{len .Files}} file · akses tercatat</p>
+    {{if .Note}}<div class="note">{{.Note}}</div>{{end}}
 
-  {{if .Note}}<div class="note">{{.Note}}</div>{{end}}
+    <div class="grid">
+      {{range .Files}}
+      <div class="file">
+        <div class="thumb">
+          {{if .IsImage}}<img src="/f/{{.Token}}" alt="{{.Label}}" loading="lazy">
+          {{else}}<svg class="ph" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>{{end}}
+        </div>
+        <div class="body">
+          <div class="label">{{.Label}}</div>
+          <div class="fn">{{.FileName}}</div>
+        </div>
+        <div class="actions">
+          <a class="dl" href="/f/{{.Token}}/download">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Unduh
+          </a>
+          <a class="open" href="/f/{{.Token}}" target="_blank" rel="noopener">Lihat</a>
+        </div>
+      </div>
+      {{end}}
+    </div>
 
-  <div class="grid">
-    {{range .Files}}
-    <div class="card">
-      <div class="thumb">
-        {{if .IsImage}}<img src="/f/{{.Token}}" alt="{{.Label}}" loading="lazy">{{else}}<span class="ph">{{.FileName}}</span>{{end}}
-      </div>
-      <div class="meta">
-        <div class="label">{{.Label}}</div>
-        <div class="fname">{{.FileName}}</div>
-      </div>
-      <div class="actions">
-        <a class="btn btn-dl" href="/f/{{.Token}}/download">Download</a>
-      </div>
+    {{if not .Once}}
+    <div class="confirm">
+      <h3>Sudah selesai mengunduh?</h3>
+      <p>Klik untuk menutup tautan ini secara permanen. Setelah dikonfirmasi, semua file di sini tidak bisa diakses lagi demi keamanan data.</p>
+      <form method="post" action="/b/{{.Token}}/confirm" onsubmit="return confirm('Tutup tautan ini? File tidak bisa diakses lagi setelah ini.')">
+        <button type="submit">Konfirmasi &amp; Tutup Tautan</button>
+      </form>
     </div>
     {{end}}
-  </div>
-
-  <div class="confirm-box">
-    <p>
-      Setelah Anda selesai mengunduh seluruh dokumen di atas, tekan tombol konfirmasi.
-      Setelah dikonfirmasi, tautan ini akan <strong>dinonaktifkan secara permanen</strong>
-      dan dokumen tidak dapat diakses kembali demi keamanan data merchant.
-    </p>
-    <form method="POST" action="/b/{{.Token}}/confirm" onsubmit="return confirm('Konfirmasi bahwa Anda sudah mengunduh semua dokumen? Tautan akan dinonaktifkan dan tidak bisa dibuka lagi.');">
-      <button type="submit" class="btn btn-confirm">Konfirmasi — Saya Sudah Mengunduh</button>
-    </form>
-  </div>
-
-  <footer>PT. Gerbang Transaksi Digital · Portal dokumen aman · files.qris.gtd.co.id</footer>
-</div>
+  </main>
+  <footer>&copy; 2026 PT. Gerbang Transaksi Digital</footer>
 </body>
 </html>{{end}}

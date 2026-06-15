@@ -1,0 +1,213 @@
+{{define "upload.html"}}<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>GTD Files — Kirim File</title>
+  <link rel="icon" href="/favicon.ico" type="image/png">
+  <style>
+    :root{
+      --blue:#2563eb; --blue-dark:#1d4ed8; --blue-50:#eff6ff; --blue-100:#dbeafe;
+      --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc;
+      --amber-bg:#fffbeb; --amber-line:#fde68a; --amber-ink:#92400e;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+    header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+    .bar{max-width:760px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px}
+    .bar img{height:34px;width:auto;display:block}
+    .bar .name{font-weight:700;font-size:17px;letter-spacing:-.01em}
+    .bar .name span{color:var(--blue)}
+    main{max-width:760px;margin:0 auto;padding:28px 20px 64px}
+    h1{font-size:24px;margin:0 0 6px;letter-spacing:-.02em}
+    .sub{color:var(--muted);margin:0 0 22px;font-size:15px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+    .warn{display:flex;gap:12px;background:var(--amber-bg);border:1px solid var(--amber-line);color:var(--amber-ink);border-radius:10px;padding:13px 15px;font-size:13.5px;margin-bottom:22px}
+    .warn svg{flex:none;margin-top:1px}
+    label{display:block;font-weight:600;font-size:13.5px;margin:0 0 6px}
+    .field{margin-bottom:18px}
+    input[type=text],textarea,select{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:14.5px;font-family:inherit;color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
+    input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-100)}
+    textarea{resize:vertical;min-height:76px}
+    .hint{color:var(--muted);font-size:12.5px;margin-top:5px}
+    .drop{border:2px dashed var(--line);border-radius:12px;padding:30px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--blue-50)}
+    .drop:hover,.drop.drag{border-color:var(--blue);background:var(--blue-100)}
+    .drop .big{font-weight:600;font-size:15px}
+    .drop .small{color:var(--muted);font-size:13px;margin-top:4px}
+    .drop input{display:none}
+    .files{list-style:none;margin:14px 0 0;padding:0}
+    .files li{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13.5px;margin-bottom:8px}
+    .files li .fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .files li .sz{color:var(--muted);font-size:12.5px}
+    .files li .rm{cursor:pointer;color:var(--muted);border:none;background:none;font-size:18px;line-height:1;padding:0 2px}
+    .files li .rm:hover{color:#dc2626}
+    .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .mode{border:1px solid var(--line);border-radius:10px;padding:13px 14px;cursor:pointer;transition:border-color .15s,background .15s}
+    .mode.active{border-color:var(--blue);background:var(--blue-50)}
+    .mode .t{font-weight:600;font-size:14px}
+    .mode .d{color:var(--muted);font-size:12.5px;margin-top:3px}
+    .mode input{display:none}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:13px 18px;font-size:15px;font-weight:600;cursor:pointer;transition:background .15s}
+    .btn:hover{background:var(--blue-dark)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .result{margin-top:20px;border:1px solid var(--blue-100);background:var(--blue-50);border-radius:12px;padding:18px;display:none}
+    .result.show{display:block}
+    .result h3{margin:0 0 10px;font-size:15px}
+    .linkrow{display:flex;gap:8px;margin-top:6px}
+    .linkrow input{flex:1;font-size:13px;background:#fff}
+    .copy{border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:9px;padding:0 14px;font-weight:600;font-size:13px;cursor:pointer}
+    .copy:hover{background:var(--blue);color:#fff}
+    .err{color:#dc2626;font-size:13.5px;margin-top:12px;display:none}
+    .err.show{display:block}
+    footer{text-align:center;color:var(--muted);font-size:12.5px;padding:24px 20px 40px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <img src="/assets/logo_gtd.png" alt="GTD">
+      <div class="name">GTD <span>Files</span></div>
+    </div>
+  </header>
+  <main>
+    <h1>Kirim File</h1>
+    <p class="sub">Unggah file untuk dibagikan lewat tautan aman. File disimpan privat dan hanya bisa diakses melalui tautan bertoken.</p>
+
+    <div class="card">
+      <div class="warn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>Tautan unggahan ini <b>terbuka tanpa login</b>. Jangan mengunggah data sensitif yang tidak seharusnya dibagikan. Siapa pun yang memegang tautan hasil unggah dapat membuka file di dalamnya.</div>
+      </div>
+
+      <form id="form">
+        <div class="field">
+          <label for="title">Judul</label>
+          <input type="text" id="title" name="title" placeholder="mis. Dokumen Onboarding" maxlength="200">
+        </div>
+
+        <div class="field">
+          <label for="docName">Nama Dokumen <span style="font-weight:400;color:var(--muted)">(opsional)</span></label>
+          <input type="text" id="docName" name="docName" placeholder="mis. KTP Pemilik" maxlength="200">
+          <div class="hint">Label tampil di halaman penerima. Nama file & tipe terdeteksi otomatis.</div>
+        </div>
+
+        <div class="field">
+          <label for="note">Catatan <span style="font-weight:400;color:var(--muted)">(opsional)</span></label>
+          <textarea id="note" name="note" placeholder="Pesan untuk penerima..." maxlength="1000"></textarea>
+        </div>
+
+        <div class="field">
+          <label>File</label>
+          <label class="drop" id="drop">
+            <div class="big">Klik untuk pilih file atau seret ke sini</div>
+            <div class="small">Maks. {{.MaxMB}} MB per file · gambar, PDF, dokumen</div>
+            <input type="file" id="files" name="files" multiple>
+          </label>
+          <ul class="files" id="filelist"></ul>
+        </div>
+
+        <div class="field">
+          <label>Mode Akses</label>
+          <div class="modes">
+            <label class="mode active" data-mode="open">
+              <input type="radio" name="accessMode" value="open" checked>
+              <div class="t">Bebas</div>
+              <div class="d">Bisa dibuka & diunduh berkali-kali sampai dicabut.</div>
+            </label>
+            <label class="mode" data-mode="once">
+              <input type="radio" name="accessMode" value="once">
+              <div class="t">Sekali Pakai</div>
+              <div class="d">Tautan hangus otomatis setelah unduhan pertama.</div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn" id="submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Unggah & Buat Tautan
+        </button>
+        <div class="err" id="err"></div>
+      </form>
+
+      <div class="result" id="result">
+        <h3>Tautan berhasil dibuat</h3>
+        <div class="linkrow">
+          <input type="text" id="bundleUrl" readonly>
+          <button type="button" class="copy" id="copy">Salin</button>
+        </div>
+        <p class="hint" id="resultMeta" style="margin-top:10px"></p>
+      </div>
+    </div>
+  </main>
+  <footer>&copy; 2026 PT. Gerbang Transaksi Digital</footer>
+
+  <script>
+    const filesInput = document.getElementById('files');
+    const fileList = document.getElementById('filelist');
+    const drop = document.getElementById('drop');
+    const maxBytes = {{.MaxMB}} * 1024 * 1024;
+    let picked = [];
+
+    function fmt(n){ if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+    function render(){
+      fileList.innerHTML='';
+      picked.forEach((f,i)=>{
+        const li=document.createElement('li');
+        const over = f.size>maxBytes;
+        li.innerHTML='<span class="fn">'+f.name+'</span><span class="sz" style="'+(over?'color:#dc2626':'')+'">'+fmt(f.size)+(over?' · terlalu besar':'')+'</span>';
+        const rm=document.createElement('button'); rm.type='button'; rm.className='rm'; rm.textContent='×';
+        rm.onclick=()=>{picked.splice(i,1);render();};
+        li.appendChild(rm); fileList.appendChild(li);
+      });
+    }
+    filesInput.addEventListener('change',e=>{ picked=picked.concat(Array.from(e.target.files)); filesInput.value=''; render(); });
+    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+    drop.addEventListener('drop',e=>{ picked=picked.concat(Array.from(e.dataTransfer.files)); render(); });
+
+    document.querySelectorAll('.mode').forEach(m=>m.addEventListener('click',()=>{
+      document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));
+      m.classList.add('active');
+    }));
+
+    const form=document.getElementById('form');
+    const submit=document.getElementById('submit');
+    const err=document.getElementById('err');
+    const result=document.getElementById('result');
+
+    form.addEventListener('submit', async e=>{
+      e.preventDefault();
+      err.classList.remove('show'); result.classList.remove('show');
+      if(picked.length===0){ err.textContent='Pilih minimal satu file.'; err.classList.add('show'); return; }
+      if(picked.some(f=>f.size>maxBytes)){ err.textContent='Ada file melebihi batas {{.MaxMB}} MB. Hapus dulu.'; err.classList.add('show'); return; }
+
+      const fd=new FormData();
+      fd.append('title',document.getElementById('title').value);
+      fd.append('docName',document.getElementById('docName').value);
+      fd.append('note',document.getElementById('note').value);
+      fd.append('accessMode',document.querySelector('input[name=accessMode]:checked').value);
+      picked.forEach(f=>fd.append('files',f));
+
+      submit.disabled=true; submit.textContent='Mengunggah...';
+      try{
+        const res=await fetch('/api/upload',{method:'POST',body:fd});
+        const data=await res.json();
+        if(!res.ok){ throw new Error(data.message||'Gagal mengunggah'); }
+        document.getElementById('bundleUrl').value=data.bundleUrl;
+        document.getElementById('resultMeta').textContent=data.files.length+' file · mode '+(data.accessMode==='once'?'Sekali Pakai':'Bebas');
+        result.classList.add('show');
+        picked=[]; render(); form.reset();
+        document.querySelectorAll('.mode').forEach((x,i)=>x.classList.toggle('active',i===0));
+      }catch(ex){ err.textContent=ex.message; err.classList.add('show'); }
+      finally{ submit.disabled=false; submit.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Unggah & Buat Tautan'; }
+    });
+
+    document.getElementById('copy').addEventListener('click',()=>{
+      const i=document.getElementById('bundleUrl'); i.select();
+      navigator.clipboard.writeText(i.value);
+      const b=document.getElementById('copy'); b.textContent='Tersalin'; setTimeout(()=>b.textContent='Salin',1500);
+    });
+  </script>
+</body>
+</html>{{end}}

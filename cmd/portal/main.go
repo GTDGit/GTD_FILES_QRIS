@@ -45,7 +45,23 @@ func main() {
 	log.Info().Str("bucket", cfg.Storage.Bucket).Str("region", cfg.Storage.Region).Msg("storage ready")
 
 	repo := repository.New(db)
-	portal, err := handler.NewPortal(repo, store)
+
+	// The portal is a standalone product and owns its own schema. Bootstrap
+	// the tables on startup (idempotent CREATE TABLE IF NOT EXISTS).
+	bootstrapCtx, bootstrapCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	if serr := repo.EnsureSchema(bootstrapCtx); serr != nil {
+		bootstrapCancel()
+		log.Error().Err(serr).Msg("schema bootstrap failed")
+		os.Exit(1)
+	}
+	bootstrapCancel()
+	log.Info().Msg("schema ready")
+
+	portal, err := handler.NewPortal(repo, store, handler.Options{
+		BaseURL:   cfg.BaseURL,
+		KeyPrefix: cfg.Storage.KeyPrefix,
+		MaxBytes:  cfg.MaxUploadBytes,
+	})
 	if err != nil {
 		log.Error().Err(err).Msg("portal init failed")
 		os.Exit(1)
@@ -60,9 +76,16 @@ func main() {
 	// Health check for nginx/load balancer.
 	router.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 
-	// Token-gated portal routes. No index, no listing — a bare visit to "/"
-	// returns 403 just like any unknown token.
-	router.GET("/", portal.Forbidden)
+	// Open upload portal (no auth). "/" shows the upload form.
+	router.GET("/", portal.ShowUpload)
+	router.GET("/api", portal.ShowUpload)
+	router.POST("/api/upload", portal.Upload)
+
+	// Embedded static assets (logo, favicon).
+	router.GET("/assets/:name", portal.Asset)
+	router.GET("/favicon.ico", portal.Favicon)
+
+	// Token-gated delivery routes. No listing — an unknown token returns 403.
 	router.GET("/b/:token", portal.ViewBundle)
 	router.POST("/b/:token/confirm", portal.Confirm)
 	router.GET("/f/:token", portal.ViewFile)

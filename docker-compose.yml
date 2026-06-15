@@ -16,6 +16,8 @@ services:
     environment:
     - PORT=8090
     - ENV=${ENV}
+    - FILES_BASE_URL=${FILES_BASE_URL}
+    - FILES_MAX_UPLOAD_MB=${FILES_MAX_UPLOAD_MB}
     - DB_HOST=${DB_HOST}
     - DB_PORT=${DB_PORT}
     - DB_USER=${DB_USER}
@@ -28,6 +30,7 @@ services:
     - FILES_S3_ENDPOINT=${FILES_S3_ENDPOINT}
     - FILES_S3_ACCESS_KEY=${FILES_S3_ACCESS_KEY}
     - FILES_S3_SECRET_KEY=${FILES_S3_SECRET_KEY}
+    - FILES_S3_KEY_PREFIX=${FILES_S3_KEY_PREFIX}
     networks:
     - gtd-files-qris-network
     ports:

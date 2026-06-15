@@ -1,23 +1,36 @@
 {{define "confirmed.html"}}<!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>Konfirmasi Diterima</title>
-<style>
-  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:#0f172a; color:#e2e8f0; }
-  .box { max-width:440px; text-align:center; padding:32px 24px; }
-  .check { width:72px; height:72px; border-radius:50%; background:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:38px; color:#04210f; }
-  h1 { font-size:20px; margin:8px 0; }
-  p { color:#94a3b8; font-size:14px; line-height:1.6; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Konfirmasi Diterima — GTD Files</title>
+  <link rel="icon" href="/favicon.ico" type="image/png">
+  <style>
+    :root{--blue:#2563eb;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc;--green:#16a34a;--green-bg:#dcfce7}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;flex-direction:column;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    header{background:#fff;border-bottom:1px solid var(--line)}
+    .bar{max-width:820px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px}
+    .bar img{height:34px;width:auto;display:block}
+    .bar .name{font-weight:700;font-size:17px}.bar .name span{color:var(--blue)}
+    main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px}
+    .box{max-width:460px;text-align:center}
+    .check{width:76px;height:76px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+    h1{font-size:22px;margin:0 0 10px;letter-spacing:-.02em}
+    p{color:var(--muted);font-size:14.5px;line-height:1.6;margin:0}
+    footer{text-align:center;color:var(--muted);font-size:12.5px;padding:24px 20px}
+  </style>
 </head>
 <body>
-  <div class="box">
-    <div class="check">&#10003;</div>
-    <h1>Konfirmasi Diterima</h1>
-    <p>Terima kasih. Dokumen{{if .MerchantName}} untuk <strong>{{.MerchantName}}</strong>{{end}} telah Anda konfirmasi terunduh. Tautan ini sekarang dinonaktifkan dan tidak dapat dibuka kembali demi keamanan data merchant.</p>
-  </div>
+  <header><div class="bar"><img src="/assets/logo_gtd.png" alt="GTD"><div class="name">GTD <span>Files</span></div></div></header>
+  <main>
+    <div class="box">
+      <div class="check"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <h1>Konfirmasi Diterima</h1>
+      <p>Terima kasih{{if .Title}} — <strong>{{.Title}}</strong>{{end}} telah dikonfirmasi terunduh. Tautan ini sekarang dinonaktifkan dan tidak dapat dibuka kembali demi keamanan data.</p>
+    </div>
+  </main>
+  <footer>&copy; 2026 PT. Gerbang Transaksi Digital</footer>
 </body>
 </html>{{end}}
