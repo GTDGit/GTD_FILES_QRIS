@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -157,48 +158,140 @@ func (p *Portal) serveAsset(c *gin.Context, name string) {
 	c.Data(http.StatusOK, ct, data)
 }
 
-// Upload handles POST /api/upload — open, no auth. Accepts multipart form-data
-// with one or more "files", an optional "title", "note", "docName", and
-// "accessMode" (open|once, default open). File name and content type are
+// uploadMeta is the bundle-level metadata parsed from an upload request.
+type uploadMeta struct {
+	title      string
+	note       *string
+	docName    *string
+	accessMode models.AccessMode
+}
+
+// uploadFile is one decoded file ready to be validated and stored. fileName is
+// a best-effort hint from the client (used only to preserve an extension); the
+// content type is always re-detected from the bytes.
+type uploadFile struct {
+	fileName string
+	data     []byte
+}
+
+// jsonUploadReq is the application/json (base64) upload shape.
+type jsonUploadReq struct {
+	Title      string `json:"title"`
+	Note       string `json:"note"`
+	DocName    string `json:"docName"`
+	AccessMode string `json:"accessMode"`
+	Files      []struct {
+		FileName   string `json:"fileName"`
+		DataBase64 string `json:"dataBase64"`
+	} `json:"files"`
+}
+
+// Upload handles POST /api/upload — open, no auth. Accepts EITHER multipart
+// form-data (field "files") OR application/json with base64-encoded files. In
+// both cases bundle metadata is optional ("title", "note", "docName",
+// "accessMode": open|once, default open). File name and content type are
 // detected server-side, never trusted from the client.
 func (p *Portal) Upload(c *gin.Context) {
 	// Cap the whole request body to maxBytes * a small fanout for multi-file.
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, p.maxBytes*10+(1<<20))
+	// base64 inflates ~33%, so allow extra headroom for the JSON path.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, p.maxBytes*14+(1<<20))
 
-	if err := c.Request.ParseMultipartForm(p.maxBytes); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "INVALID_FORM", "message": "could not parse upload form"})
+	var (
+		meta  uploadMeta
+		files []uploadFile
+		perr  *uploadError
+	)
+	switch {
+	case strings.HasPrefix(c.ContentType(), "application/json"):
+		meta, files, perr = p.parseJSONUpload(c)
+	case strings.HasPrefix(c.ContentType(), "multipart/form-data"):
+		meta, files, perr = p.parseMultipartUpload(c)
+	default:
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"code": "UNSUPPORTED_MEDIA_TYPE", "message": "use multipart/form-data or application/json (base64)"})
 		return
+	}
+	if perr != nil {
+		c.JSON(perr.status, gin.H{"code": perr.code, "message": perr.message})
+		return
+	}
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "NO_FILES", "message": "at least one file is required"})
+		return
+	}
+
+	p.processUpload(c, meta, files)
+}
+
+// uploadError carries an HTTP status + API error code for the upload handler.
+type uploadError struct {
+	status  int
+	code    string
+	message string
+}
+
+func (p *Portal) parseMultipartUpload(c *gin.Context) (uploadMeta, []uploadFile, *uploadError) {
+	if err := c.Request.ParseMultipartForm(p.maxBytes); err != nil {
+		return uploadMeta{}, nil, &uploadError{http.StatusBadRequest, "INVALID_FORM", "could not parse upload form"}
 	}
 	form := c.Request.MultipartForm
-	if form == nil || len(form.File["files"]) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "NO_FILES", "message": "at least one file is required under field 'files'"})
-		return
+	if form == nil {
+		return uploadMeta{}, nil, &uploadError{http.StatusBadRequest, "INVALID_FORM", "could not parse upload form"}
 	}
+	meta := metaFrom(c.PostForm("title"), c.PostForm("note"), c.PostForm("docName"), c.PostForm("accessMode"))
 
-	title := strings.TrimSpace(c.PostForm("title"))
-	if title == "" {
-		title = "Untitled"
+	var files []uploadFile
+	for _, fh := range form.File["files"] {
+		if fh.Size > p.maxBytes {
+			return meta, nil, &uploadError{http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE",
+				fmt.Sprintf("%s exceeds the %d MB limit", fh.Filename, p.maxBytes/(1024*1024))}
+		}
+		src, oerr := fh.Open()
+		if oerr != nil {
+			return meta, nil, &uploadError{http.StatusBadRequest, "READ_ERROR", "could not read uploaded file"}
+		}
+		data, rerr := io.ReadAll(src)
+		src.Close()
+		if rerr != nil {
+			return meta, nil, &uploadError{http.StatusBadRequest, "READ_ERROR", "could not read uploaded file"}
+		}
+		files = append(files, uploadFile{fileName: fh.Filename, data: data})
 	}
-	accessMode := models.AccessOpen
-	if strings.EqualFold(c.PostForm("accessMode"), string(models.AccessOnce)) {
-		accessMode = models.AccessOnce
-	}
-	var notePtr *string
-	if n := strings.TrimSpace(c.PostForm("note")); n != "" {
-		notePtr = &n
-	}
-	var docNamePtr *string
-	if d := strings.TrimSpace(c.PostForm("docName")); d != "" {
-		docNamePtr = &d
-	}
+	return meta, files, nil
+}
 
+func (p *Portal) parseJSONUpload(c *gin.Context) (uploadMeta, []uploadFile, *uploadError) {
+	var req jsonUploadReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return uploadMeta{}, nil, &uploadError{http.StatusBadRequest, "INVALID_JSON", "invalid JSON body"}
+	}
+	meta := metaFrom(req.Title, req.Note, req.DocName, req.AccessMode)
+
+	var files []uploadFile
+	for _, f := range req.Files {
+		data, derr := decodeBase64(f.DataBase64)
+		if derr != nil {
+			return meta, nil, &uploadError{http.StatusBadRequest, "INVALID_BASE64",
+				fmt.Sprintf("invalid base64 for %q", f.FileName)}
+		}
+		if int64(len(data)) > p.maxBytes {
+			return meta, nil, &uploadError{http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE",
+				fmt.Sprintf("%s exceeds the %d MB limit", f.FileName, p.maxBytes/(1024*1024))}
+		}
+		files = append(files, uploadFile{fileName: f.FileName, data: data})
+	}
+	return meta, files, nil
+}
+
+// processUpload validates each decoded file, stores it privately, records the
+// rows, and writes the JSON response.
+func (p *Portal) processUpload(c *gin.Context, meta uploadMeta, files []uploadFile) {
 	ctx := c.Request.Context()
 
 	bundle, err := p.repo.CreateBundle(ctx, &models.Bundle{
 		Token:      newToken(),
-		Title:      title,
-		Note:       notePtr,
-		AccessMode: accessMode,
+		Title:      meta.title,
+		Note:       meta.note,
+		AccessMode: meta.accessMode,
 		Status:     models.StatusActive,
 	})
 	if err != nil {
@@ -213,62 +306,54 @@ func (p *Portal) Upload(c *gin.Context) {
 		ViewURL  string `json:"viewUrl"`
 	}
 	var results []uploaded
+	var storedKeys []string
 
-	for _, fh := range form.File["files"] {
-		if fh.Size > p.maxBytes {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
-				"code": "FILE_TOO_LARGE",
-				"message": fmt.Sprintf("%s exceeds the %d MB limit", fh.Filename, p.maxBytes/(1024*1024)),
-			})
-			return
-		}
-		src, oerr := fh.Open()
-		if oerr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "READ_ERROR", "message": "could not read uploaded file"})
-			return
-		}
-		data, rerr := io.ReadAll(src)
-		src.Close()
-		if rerr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "READ_ERROR", "message": "could not read uploaded file"})
+	for _, uf := range files {
+		if len(uf.data) == 0 {
+			p.cleanup(ctx, storedKeys)
+			c.JSON(http.StatusBadRequest, gin.H{"code": "EMPTY_FILE", "message": fmt.Sprintf("%q is empty", uf.fileName)})
 			return
 		}
 
 		// Auto-detect content type from the bytes; never trust the client header.
-		ct := http.DetectContentType(data)
+		ct := http.DetectContentType(uf.data)
 		ct = strings.SplitN(ct, ";", 2)[0]
 		if !allowedContentTypes[ct] {
+			p.cleanup(ctx, storedKeys)
 			c.JSON(http.StatusUnsupportedMediaType, gin.H{
-				"code": "UNSUPPORTED_TYPE",
+				"code":    "UNSUPPORTED_TYPE",
 				"message": fmt.Sprintf("file type %q is not allowed", ct),
 			})
 			return
 		}
 
-		fileName := sanitizeFileName(fh.Filename, ct)
-		sum := sha256.Sum256(data)
+		fileName := sanitizeFileName(uf.fileName, ct)
+		sum := sha256.Sum256(uf.data)
 		checksum := hex.EncodeToString(sum[:])
 		fileToken := newToken()
 		key := p.keyPrefix + bundle.Token + "/" + fileToken + extForType(ct, fileName)
 
-		if perr := p.store.Put(ctx, key, ct, data); perr != nil {
+		if perr := p.store.Put(ctx, key, ct, uf.data); perr != nil {
 			log.Error().Err(perr).Str("key", key).Msg("storage put failed")
+			p.cleanup(ctx, storedKeys)
 			c.JSON(http.StatusBadGateway, gin.H{"code": "STORAGE_ERROR", "message": "could not store file"})
 			return
 		}
+		storedKeys = append(storedKeys, key)
 
 		f, ferr := p.repo.CreateFile(ctx, &models.File{
 			BundleID:    bundle.ID,
 			Token:       fileToken,
-			DocName:     docNamePtr,
+			DocName:     meta.docName,
 			FileName:    fileName,
 			ContentType: ct,
-			SizeBytes:   int64(len(data)),
+			SizeBytes:   int64(len(uf.data)),
 			StorageKey:  key,
 			Checksum:    &checksum,
 		})
 		if ferr != nil {
 			log.Error().Err(ferr).Msg("create file row failed")
+			p.cleanup(ctx, storedKeys)
 			c.JSON(http.StatusInternalServerError, gin.H{"code": "DB_ERROR", "message": "could not record file"})
 			return
 		}
@@ -288,6 +373,45 @@ func (p *Portal) Upload(c *gin.Context) {
 		"bundleUrl":  p.link(c, "/b/"+bundle.Token),
 		"files":      results,
 	})
+}
+
+// cleanup best-effort deletes objects stored before a mid-batch failure.
+func (p *Portal) cleanup(ctx context.Context, keys []string) {
+	for _, k := range keys {
+		_ = p.store.Delete(ctx, k)
+	}
+}
+
+// metaFrom normalizes bundle-level fields from any upload source.
+func metaFrom(title, note, docName, accessMode string) uploadMeta {
+	m := uploadMeta{accessMode: models.AccessOpen}
+	if m.title = strings.TrimSpace(title); m.title == "" {
+		m.title = "Untitled"
+	}
+	if strings.EqualFold(accessMode, string(models.AccessOnce)) {
+		m.accessMode = models.AccessOnce
+	}
+	if n := strings.TrimSpace(note); n != "" {
+		m.note = &n
+	}
+	if d := strings.TrimSpace(docName); d != "" {
+		m.docName = &d
+	}
+	return m
+}
+
+// decodeBase64 accepts a raw base64 string or a data: URI
+// (data:<ct>;base64,<payload>).
+func decodeBase64(s string) ([]byte, error) {
+	s = strings.TrimSpace(s)
+	if i := strings.Index(s, ";base64,"); i != -1 {
+		s = s[i+len(";base64,"):]
+	} else if strings.HasPrefix(s, "data:") {
+		if i := strings.Index(s, ","); i != -1 {
+			s = s[i+1:]
+		}
+	}
+	return base64.StdEncoding.DecodeString(s)
 }
 
 // ViewBundle handles GET /b/:token — the document page.
